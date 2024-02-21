@@ -1,25 +1,57 @@
 import itertools
 import sys
 
-# Function to calculate the probability of each dice roll
-def dice_probabilities():
-    return {i: 1 / 36 for i in range(2, 13)}
+# Dynamic programming approach:
+# Can order in non-decreasing remaining tile sums
 
-# Function to generate all possible subsets of a given set
-def all_subsets(s):
-    return itertools.chain(*map(lambda x: itertools.combinations(s, x), range(0, len(s) + 1)))
+def expected_wins(player, position, score=None):
+    """calculate the expected wins of player
 
-# Function to calculate the sum of a set of tiles
-def sum_of_tiles(s):
-    return sum(s)
+    Args:
+        player (int): 1 or 2, indicating player 1 or 2
+        position (list): list of ints representing the tiles still open on the board
+        score (int, optional): for player 2 only, indicate score of player 1. Defaults to None.
 
-# Function to calculate the expected wins for a given player and position
-def expected_wins(player, position, score=None, roll=None):
-    # Placeholder implementation, replace with your logic
-    return 0.5
+    Returns:
+        double representing the number of expected wins
+    """
+    positionSum = sum(position)
+    
+    # dp matrix to store expected wins for every state
+    dpExpectedWins = {}
+    
+    for i in range (0, positionSum):
+        positions = get_positions_with_sum_from_initial(i, position)
+        
+        for p in positions:
+            pExpectedWins = 0
+            succ_positionsAndPossibilities = get_next_positions_and_possibilities_from_initial(p)
+            for p_succ in succ_positionsAndPossibilities:
+                pExpectedWins += dpExpectedWins(p_succ[0]) * p_succ[1] 
+                                    # p_succ[0] is position, a list, p_succ[1] is a probability, 
+                                    # double from 0 to 1
+            dpExpectedWins[i].update({p: pExpectedWins})
+    
+    rawExpectedWinsForPosition = 0
+    succ_positionsAndPossibilities = get_next_positions_and_possibilities_from_initial(position)
+    for p_succ in succ_positionsAndPossibilities:
+        rawExpectedWinsForPosition += dpExpectedWins(p_succ[0]) * p_succ[1]
+    
+    pass
+    
 
-# Function to determine the optimal move for a given player and position
-def optimal_move(player, position, roll):
+def optimal_move(player, position, roll, score=None):
+    """calculate the optimal move of player
+
+    Args:
+        player (int): 1 or 2, indicating player 1 or 2
+        position (list): list of ints representing the tiles still open on the board
+        roll (int): value of current roll
+        score (int, optional): for player 2 only, indicate score of player 1. Defaults to None.
+
+    Returns:
+        _type_: _description_
+    """
     # Placeholder implementation, replace with your logic
     return []
 
