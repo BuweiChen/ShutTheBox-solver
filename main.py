@@ -1,8 +1,23 @@
 import itertools
 import sys
 
-# Dynamic programming approach:
-# Can order in non-decreasing remaining tile sums
+# global variables
+N = 9
+MAXSCORE = 43
+
+def dice_probabilities():
+    probabilities = {}
+    for i in range(1, 7):
+        for j in range(1, 7):
+            total = i + j
+            if total in probabilities:
+                probabilities[total] += 1
+            else:
+                probabilities[total] = 1
+    total_outcomes = 36
+    for key in probabilities:
+        probabilities[key] /= total_outcomes
+    return probabilities
 
 def expected_wins(player, position, score=None):
     """calculate the expected wins of player
@@ -15,28 +30,56 @@ def expected_wins(player, position, score=None):
     Returns:
         double representing the number of expected wins
     """
-    positionSum = sum(position)
     
-    # dp matrix to store expected wins for every state
-    dpExpectedWins = {}
+    # precompute dice probabilities
+    twoDiceSumProb = dice_probabilities()
     
-    for i in range (0, positionSum):
-        positions = get_positions_with_sum_from_initial(i, position)
-        
-        for p in positions:
-            pExpectedWins = 0
-            succ_positionsAndPossibilities = get_next_positions_and_possibilities_from_initial(p)
-            for p_succ in succ_positionsAndPossibilities:
-                pExpectedWins += dpExpectedWins(p_succ[0]) * p_succ[1] 
-                                    # p_succ[0] is position, a list, p_succ[1] is a probability, 
-                                    # double from 0 to 1
-            dpExpectedWins[i].update({p: pExpectedWins})
+    # start with player 2 end states
     
-    rawExpectedWinsForPosition = 0
-    succ_positionsAndPossibilities = get_next_positions_and_possibilities_from_initial(position)
-    for p_succ in succ_positionsAndPossibilities:
-        rawExpectedWinsForPosition += dpExpectedWins(p_succ[0]) * p_succ[1]
+    # will need to merge the following 2 loops for DP
     
+    # compute expected p2 wins starting turn with position, roll, and p1 score
+    dpP2WithRoll = {}
+    for p1S in range (0, MAXSCORE + 1):
+        dpP2WithRoll.update({p1S: {}})
+        for p2S in range (0, MAXSCORE + 1):
+            positionsWithSumP2S = get_positions_with_sum(p2S)
+            for r in range (1, 7):
+                for p in positionsWithSumP2S:
+                    expected_wins = None
+                    succ = get_succ_of_position_with_roll(p, r)
+                    if len(succ) == 0:
+                        if p2S == p1S:
+                            expected_wins = 0.5
+                        elif p2S < p1S:
+                            expected_wins = 1
+                        else:
+                            expected_wins = 0    
+                    else:
+                        succ_value = []
+                        for sc in succ:
+                            succ_value.append(dpP2[p1S][tuple(p)])
+                        expected_wins = max(succ_value)
+                    dpP2WithRoll[p1S].update({tuple(p): expected_wins})
+    
+    # compute expected p2 wins starting turn with position and p1 score
+    dpP2 = {}
+    for p1S in range (0, MAXSCORE + 1):
+        dpP2.update({p1S: {}})
+        for p2S in range (0, MAXSCORE + 1):
+            positionsWithSumP2S = get_positions_with_sum(p2S)
+            for p in positionsWithSumP2S:
+                expected_wins = None
+                if p2S < p1S: expected_wins = 1
+                elif p2S >= max(7, p1S):
+                    expected_wins = 0
+                    for i in range (2, 13):
+                        expected_wins += twoDiceSumProb[i] * dpP2WithRoll[p1S][i][tuple(p)]
+                else:
+                    expected_wins = 0
+                    for i in range (1, 7):
+                        expected_wins += 1/6 * dpP2WithRoll[p1S][i][tuple(p)]
+                dpP2[p1S].update({tuple(p): expected_wins})
     pass
     
 
