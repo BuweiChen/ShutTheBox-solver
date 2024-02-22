@@ -85,15 +85,15 @@ def expected_wins(player, position, score=None):
     if score != None and score == 0:
         return 0
     # if p1S is 0, p1 already won, so start from 1
-    for p1S in range (1, MAXSCORE + 1):
+    for p1S in range (0, MAXSCORE + 1):
         dpP2.update({p1S: {}})
         dpP2WithRoll.update({p1S: {}})
         for p2S in range (0, MAXSCORE + 1):
             positionsWithSumP2S = get_positions_with_sum(p2S)
             dice_roll_max = 12 if p2S > 6 else 6
-            for r in range (1, dice_roll_max + 1):
-                dpP2WithRoll[p1S].update({r: {}})
-                for p in positionsWithSumP2S:
+            for p in positionsWithSumP2S:
+                dpP2WithRoll[p1S].update({tuple(p): {}})
+                for r in range (1, dice_roll_max + 1):
                     expected_wins = None
                     succ = get_succ_of_position_with_roll(p, r)
                     if len(succ) == 0:
@@ -108,7 +108,7 @@ def expected_wins(player, position, score=None):
                         for sc in succ:
                             succ_value.append(dpP2[p1S][tuple(sc)])
                         expected_wins = max(succ_value)
-                    dpP2WithRoll[p1S][r].update({tuple(p): expected_wins})
+                    dpP2WithRoll[p1S][tuple(p)].update({r: expected_wins})
                     
             for p in positionsWithSumP2S:
                 expected_wins = None
@@ -116,17 +116,50 @@ def expected_wins(player, position, score=None):
                 elif p2S >= max(7, p1S):
                     expected_wins = 0
                     for i in range (2, 13):
-                        expected_wins += twoDiceSumProb[i] * dpP2WithRoll[p1S][i][tuple(p)]
+                        expected_wins += twoDiceSumProb[i] * dpP2WithRoll[p1S][tuple(p)][i]
                 else:
                     expected_wins = 0
                     for i in range (1, 7):
-                        try: 
-                            expected_wins += 1/6 * dpP2WithRoll[p1S][i][tuple(p)]
-                        except (KeyError): 
-                            print()
+                        expected_wins += 1/6 * dpP2WithRoll[p1S][tuple(p)][i]
                 dpP2[p1S].update({tuple(p): expected_wins})
     # just assume p2 for now, temporary test purposes
-    return dpP2[score][tuple(position)]
+    
+    if player == 2:
+        return dpP2[score][tuple(position)]
+    
+    dpP1 = {}
+    dpP1WithRolls = {}
+    
+    for p1S in range (0, MAXSCORE + 1):
+        positionsWithSumP1S = get_positions_with_sum(p1S)
+        dice_roll_max = 12 if p2S > 6 else 6
+        for p in positionsWithSumP1S:
+            dpP1WithRolls.update({tuple(p): {}})
+            for r in range (1, dice_roll_max + 1):
+                expected_wins = None
+                succ = get_succ_of_position_with_roll(p, r)
+                if len(succ) == 0:
+                    expected_wins = 1 - dpP2[p1S][(1,2,3,4,5,6,7,8,9)]
+                else:
+                    succ_value = []
+                    for sc in succ:
+                        succ_value.append(dpP1[tuple(sc)])
+                    expected_wins = max(succ_value)
+                dpP1WithRolls[tuple(p)].update({r: expected_wins})
+        for p in positionsWithSumP1S:
+            expected_wins = None
+            if p1S == 0:
+                expected_wins = 1
+            elif p1S > 6:
+                expected_wins = 0
+                for i in range (2, 13):
+                    expected_wins += twoDiceSumProb[i] * dpP1WithRolls[tuple(p)][i]
+            else:
+                expected_wins = 0
+                for i in range (1, 7):
+                    expected_wins += 1/6 * dpP1WithRolls[tuple(p)][i]
+            dpP1.update({tuple(p) : expected_wins})
+    return dpP1[tuple(position)]
 
 def optimal_move(player, position, roll, score=None):
     """calculate the optimal move of player
@@ -167,4 +200,5 @@ if __name__ == "__main__":
     #     move = optimal_move(player, position, roll)
     #     print(f"{move}")
     
-    print(expected_wins(1, [1,2,3,4,5,6,7,8,9], 10))
+    print(expected_wins(1, [1,2,3,4,5,6,7,8,9]))
+    print(expected_wins(2, [1,2,3,4,5,6,7,8,9], 1))
