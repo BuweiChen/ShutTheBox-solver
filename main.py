@@ -4,6 +4,82 @@ import sys
 # global variables
 N = 9
 MAXSCORE = 45
+dpP2 = {}
+dpP2WithRoll = {}
+dpP1 = {}
+dpP1WithRolls = {}
+
+def set_up():
+    # precompute dice probabilities
+    twoDiceSumProb = dice_probabilities()
+
+    for p1S in range (0, MAXSCORE + 1):
+        dpP2.update({p1S: {}})
+        dpP2WithRoll.update({p1S: {}})
+        for p2S in range (0, MAXSCORE + 1):
+            positionsWithSumP2S = get_positions_with_sum(p2S)
+            dice_roll_max = 12 if p2S > 6 else 6
+            for p in positionsWithSumP2S:
+                dpP2WithRoll[p1S].update({tuple(p): {}})
+                for r in range (1, dice_roll_max + 1):
+                    expected_wins = None
+                    succ = get_succ_of_position_with_roll(p, r)
+                    if len(succ) == 0:
+                        if p2S == p1S:
+                            expected_wins = 0.5
+                        elif p2S < p1S:
+                            expected_wins = 1
+                        else:
+                            expected_wins = 0    
+                    else:
+                        succ_value = []
+                        for sc in succ:
+                            succ_value.append(dpP2[p1S][tuple(sc)])
+                        expected_wins = max(succ_value)
+                    dpP2WithRoll[p1S][tuple(p)].update({r: expected_wins})
+                    
+            for p in positionsWithSumP2S:
+                expected_wins = None
+                if p2S < p1S: expected_wins = 1
+                elif p2S >= max(7, p1S):
+                    expected_wins = 0
+                    for i in range (2, 13):
+                        expected_wins += twoDiceSumProb[i] * dpP2WithRoll[p1S][tuple(p)][i]
+                else:
+                    expected_wins = 0
+                    for i in range (1, 7):
+                        expected_wins += 1/6 * dpP2WithRoll[p1S][tuple(p)][i]
+                dpP2[p1S].update({tuple(p): expected_wins})
+    
+    for p1S in range (0, MAXSCORE + 1):
+        positionsWithSumP1S = get_positions_with_sum(p1S)
+        dice_roll_max = 12 if p2S > 6 else 6
+        for p in positionsWithSumP1S:
+            dpP1WithRolls.update({tuple(p): {}})
+            for r in range (1, dice_roll_max + 1):
+                expected_wins = None
+                succ = get_succ_of_position_with_roll(p, r)
+                if len(succ) == 0:
+                    expected_wins = 1 - dpP2[p1S][(1,2,3,4,5,6,7,8,9)]
+                else:
+                    succ_value = []
+                    for sc in succ:
+                        succ_value.append(dpP1[tuple(sc)])
+                    expected_wins = max(succ_value)
+                dpP1WithRolls[tuple(p)].update({r: expected_wins})
+        for p in positionsWithSumP1S:
+            expected_wins = None
+            if p1S == 0:
+                expected_wins = 1
+            elif p1S > 6:
+                expected_wins = 0
+                for i in range (2, 13):
+                    expected_wins += twoDiceSumProb[i] * dpP1WithRolls[tuple(p)][i]
+            else:
+                expected_wins = 0
+                for i in range (1, 7):
+                    expected_wins += 1/6 * dpP1WithRolls[tuple(p)][i]
+            dpP1.update({tuple(p) : expected_wins})
 
 def dice_probabilities():
     probabilities = {}
@@ -74,91 +150,8 @@ def expected_wins(player, position, score=None):
     Returns:
         double representing the number of expected wins
     """
-    
-    # precompute dice probabilities
-    twoDiceSumProb = dice_probabilities()
-    
-    # compute expected p2 wins starting turn with position and p1 score
-    dpP2 = {}
-    dpP2WithRoll = {}
-    
-    if score != None and score == 0:
-        return 0
-    # if p1S is 0, p1 already won, so start from 1
-    for p1S in range (0, MAXSCORE + 1):
-        dpP2.update({p1S: {}})
-        dpP2WithRoll.update({p1S: {}})
-        for p2S in range (0, MAXSCORE + 1):
-            positionsWithSumP2S = get_positions_with_sum(p2S)
-            dice_roll_max = 12 if p2S > 6 else 6
-            for p in positionsWithSumP2S:
-                dpP2WithRoll[p1S].update({tuple(p): {}})
-                for r in range (1, dice_roll_max + 1):
-                    expected_wins = None
-                    succ = get_succ_of_position_with_roll(p, r)
-                    if len(succ) == 0:
-                        if p2S == p1S:
-                            expected_wins = 0.5
-                        elif p2S < p1S:
-                            expected_wins = 1
-                        else:
-                            expected_wins = 0    
-                    else:
-                        succ_value = []
-                        for sc in succ:
-                            succ_value.append(dpP2[p1S][tuple(sc)])
-                        expected_wins = max(succ_value)
-                    dpP2WithRoll[p1S][tuple(p)].update({r: expected_wins})
-                    
-            for p in positionsWithSumP2S:
-                expected_wins = None
-                if p2S < p1S: expected_wins = 1
-                elif p2S >= max(7, p1S):
-                    expected_wins = 0
-                    for i in range (2, 13):
-                        expected_wins += twoDiceSumProb[i] * dpP2WithRoll[p1S][tuple(p)][i]
-                else:
-                    expected_wins = 0
-                    for i in range (1, 7):
-                        expected_wins += 1/6 * dpP2WithRoll[p1S][tuple(p)][i]
-                dpP2[p1S].update({tuple(p): expected_wins})
-    # just assume p2 for now, temporary test purposes
-    
     if player == 2:
         return dpP2[score][tuple(position)]
-    
-    dpP1 = {}
-    dpP1WithRolls = {}
-    
-    for p1S in range (0, MAXSCORE + 1):
-        positionsWithSumP1S = get_positions_with_sum(p1S)
-        dice_roll_max = 12 if p2S > 6 else 6
-        for p in positionsWithSumP1S:
-            dpP1WithRolls.update({tuple(p): {}})
-            for r in range (1, dice_roll_max + 1):
-                expected_wins = None
-                succ = get_succ_of_position_with_roll(p, r)
-                if len(succ) == 0:
-                    expected_wins = 1 - dpP2[p1S][(1,2,3,4,5,6,7,8,9)]
-                else:
-                    succ_value = []
-                    for sc in succ:
-                        succ_value.append(dpP1[tuple(sc)])
-                    expected_wins = max(succ_value)
-                dpP1WithRolls[tuple(p)].update({r: expected_wins})
-        for p in positionsWithSumP1S:
-            expected_wins = None
-            if p1S == 0:
-                expected_wins = 1
-            elif p1S > 6:
-                expected_wins = 0
-                for i in range (2, 13):
-                    expected_wins += twoDiceSumProb[i] * dpP1WithRolls[tuple(p)][i]
-            else:
-                expected_wins = 0
-                for i in range (1, 7):
-                    expected_wins += 1/6 * dpP1WithRolls[tuple(p)][i]
-            dpP1.update({tuple(p) : expected_wins})
     return dpP1[tuple(position)]
 
 def optimal_move(player, position, roll, score=None):
@@ -171,34 +164,40 @@ def optimal_move(player, position, roll, score=None):
         score (int, optional): for player 2 only, indicate score of player 1. Defaults to None.
 
     Returns:
-        _type_: _description_
+        list: list of tiles to close
     """
-    # Placeholder implementation, replace with your logic
-    return []
-
+    succ = get_succ_of_position_with_roll(position, roll)
+    succ_closed_and_value = []
+    if player == 2:
+        for sc in succ:
+            succ_closed_and_value.append(list(set(position) - set(sc)), dpP2[score][tuple(sc)])
+    else:
+        for sc in succ:
+            succ_closed_and_value.append((list(set(position) - set(sc)), dpP1[tuple(sc)]))
+    best_move_and_value = max(succ_closed_and_value, key=(lambda x : x[1]))
+    return best_move_and_value[0]
+    
 if __name__ == "__main__":
     # Command line arguments
-    # player = sys.argv[1]
-    # action = sys.argv[2]
-    # position = list(map(int, sys.argv[3]))
+    player = sys.argv[1]
+    action = sys.argv[2]
+    position = list(map(int, sys.argv[3]))
     
-    # if player == "--two":
-    #     score = int(sys.argv[4])
-    # else:
-    #     score = None
+    if player == "--two":
+        score = int(sys.argv[4])
+    else:
+        score = None
     
-    # if action == "--move":
-    #     roll = int(sys.argv[4 + (player == "--two")])
-    # else:
-    #     roll = None
+    if action == "--move":
+        roll = int(sys.argv[4 + (player == "--two")])
+    else:
+        roll = None
 
-    # # Perform action
-    # if action == "--expect":
-    #     wins = expected_wins(player, position, score, roll)
-    #     print(f"{wins:.6f}")
-    # elif action == "--move":
-    #     move = optimal_move(player, position, roll)
-    #     print(f"{move}")
-    
-    print(expected_wins(1, [1,2,3,4,5,6,7,8,9]))
-    print(expected_wins(2, [1,2,3,4,5,6,7,8,9], 1))
+    # Perform action
+    set_up()
+    if action == "--expect":
+        wins = expected_wins(2 if player == "--two" else 1, position, score)
+        print(f"{wins:.6f}")
+    elif action == "--move":
+        move = optimal_move(2 if player == "--two" else 1, position, roll, score)
+        print(f"{move}")
