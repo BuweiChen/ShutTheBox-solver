@@ -168,13 +168,16 @@ def optimal_move(player, position, roll, score=None):
     """
     succ = get_succ_of_position_with_roll(position, roll)
     succ_closed_and_value = []
+    best_move_and_value = None
     if player == 2:
         for sc in succ:
             succ_closed_and_value.append(list(set(position) - set(sc)), dpP2[score][tuple(sc)])
+        best_move_and_value = min(succ_closed_and_value, key=(lambda x : x[1]))
     else:
         for sc in succ:
             succ_closed_and_value.append((list(set(position) - set(sc)), dpP1[tuple(sc)]))
-    best_move_and_value = max(succ_closed_and_value, key=(lambda x : x[1]))
+        best_move_and_value = max(succ_closed_and_value, key=(lambda x : x[1]))
+    
     return best_move_and_value[0]
     
 if __name__ == "__main__":
